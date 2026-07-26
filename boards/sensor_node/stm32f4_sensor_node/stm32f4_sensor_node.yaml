@@ -1,0 +1,15 @@
+identifier: stm32f4_sensor_node
+name: STM32F4 Sensor Node
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gnuarmemb
+ram: 128
+flash: 1024
+supported:
+  - can
+  - pwm
+  - counter
+  - adc
+vendor: sensor_node

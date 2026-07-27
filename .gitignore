@@ -1,0 +1,24 @@
+# Zephyr/CMake build output
+build/
+build-*/
+
+# Firmware / compiled artifacts
+*.hex
+*.bin
+*.elf
+*.map
+*.o
+*.a
+*.d
+
+# Python
+*.pyc
+__pycache__/
+.cache/
+
+# Editor / OS cruft
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store

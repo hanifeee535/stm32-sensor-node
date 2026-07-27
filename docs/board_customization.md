@@ -145,16 +145,74 @@ Applying the procedure above to this product's current target:
 | `.dts` model / compatible | `"STMicroelectronics STM32F4DISCOVERY board"` / `"st,stm32f4discovery"` | `"STM32F4 Sensor Node"` / `"sensor_node,stm32f4-sensor-node"` |
 | SoC | `stm32f407xx` (unchanged) | `stm32f407xx` (unchanged) |
 
-**Current status:** All seven steps are complete. The board resolves under its own identity, the devicetree has been stripped to a minimal baseline (clocks, console, one LED), and a first build succeeds and produces a flashable `zephyr.elf`.
+**Current status:** All seven steps are complete. The board resolves under its own identity, the devicetree has been stripped to a minimal baseline (clocks, console, one LED), a build succeeds and produces a flashable `zephyr.elf`, and the firmware has been flashed onto the physical board and visually confirmed — the LED on `gpiod` pin 12 blinks at the expected ~1 Hz rate, so the pin mapping in the devicetree is correct, not just internally consistent.
 
 **Remaining work, not yet done:**
-* Flash the built firmware onto actual hardware and confirm the LED physically blinks — the build succeeding only proves the devicetree and board files resolve correctly, not that the pin mapping is physically correct.
 * Add sensor bus peripherals (I²C/SPI) and any other hardware actually wired to the board, one at a time, as the project progresses — deliberately deferred rather than inherited from the reference board.
 * `doc/index.rst` (carried over in Step 3) still documents the stock Discovery board's features and is not required for building — update or remove it when the board's own documentation is written.
 
 ---
 
-## 5. References
+## 5. Building and Flashing
+
+### Prerequisites
+
+* `west` and the Zephyr SDK, per the workspace-level getting-started documentation.
+* Zephyr's Python dependencies installed into the interpreter `west` actually uses: `pip install -r zephyr/scripts/requirements.txt` (see Step 7's note above — this is easy to assume is already done and not actually be true).
+* `openocd` (`sudo apt install openocd`) — the runner that talks to this board's onboard ST-Link/V2. Neither STM32CubeProgrammer nor a J-Link probe is used here.
+* The board connected via its **ST-Link mini-USB port** (labeled `CN5`, next to the ST-Link status LEDs) — not the micro-USB OTG port on the opposite side, which is the target MCU's own USB peripheral, not the debug interface. Connected correctly, it enumerates over USB as STMicroelectronics `ST-LINK/V2.1` (USB vendor ID `0483`); `lsusb` can confirm this.
+
+### Build
+
+```bash
+cd stm32-sensor-node
+west build -b stm32f4_sensor_node . -d build
+```
+
+`-d build` places the build output inside the repository, at `stm32-sensor-node/build/` — matching the `.gitignore` entry that keeps it out of version control (see [Section 6](#6-gitignore)). Without `-d`, `west build` still defaults to a `build/` directory in the current working directory, so this is mostly about being explicit; it matters more once building from a different working directory becomes routine.
+
+A clean build reports something like:
+
+```
+Memory region         Used Size  Region Size  %age Used
+           FLASH:       17488 B         1 MB      1.67%
+             RAM:        4544 B       128 KB      3.47%
+```
+
+### Flash
+
+```bash
+west flash -d build --runner openocd
+```
+
+`--runner openocd` is passed explicitly because `board.cmake` lists `stm32cubeprogrammer` first as the default runner, and that tool is not installed on this machine — omitting `--runner` would attempt `stm32cubeprogrammer` first and fail before falling back.
+
+A successful flash reports the detected chip (`stm32f4x.cpu`, an STM32F407VG, confirmed by chip ID `0x101f6413`), erases, and writes the firmware — after which the LED should visibly blink.
+
+### Rebuilding after a code or devicetree change
+
+```bash
+west build -d build
+```
+
+(No `-b` or app path needed on subsequent builds — `west` remembers the board and source directory from the existing `build/` directory. `-p` / `--pristine` forces a clean rebuild if something seems stale.)
+
+---
+
+## 6. `.gitignore`
+
+A `.gitignore` was added at the repository root once `build/` started appearing as untracked content after the first build — generated build output has no place in version control (see the workspace-level `getting_started.md`, Rule 2). It excludes:
+
+```
+build/, build-*/          — Zephyr/CMake build output
+*.hex, *.bin, *.elf, *.map, *.o, *.a, *.d   — compiled/linked firmware artifacts
+*.pyc, __pycache__/, .cache/                — Python bytecode and tool caches
+.vscode/, *.swp, *.swo, *~, .DS_Store       — editor and OS cruft
+```
+
+---
+
+## 7. References
 
 * Zephyr Application Development: https://docs.zephyrproject.org/latest/develop/application/index.html
 * Zephyr Board Porting Guide: https://docs.zephyrproject.org/latest/hardware/porting/board_porting.html

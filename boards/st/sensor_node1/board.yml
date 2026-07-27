@@ -1,0 +1,6 @@
+board:
+  name: sensor_node1
+  full_name: Sensor Node 1
+  vendor: st
+  socs:
+    - name: stm32f407xx

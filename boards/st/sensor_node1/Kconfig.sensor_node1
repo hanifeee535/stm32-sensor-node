@@ -1,5 +1,5 @@
 # Copyright (c) 2016 Linaro Limited.
 # SPDX-License-Identifier: Apache-2.0
 
-config BOARD_STM32F4_SENSOR_NODE
+config BOARD_SENSOR_NODE1
 	select SOC_STM32F407XG

@@ -6,30 +6,53 @@
 
 ## 1. Purpose
 
-This document records the procedure followed for porting a custom Zephyr board definition inside `stm32-sensor-node`, using the sensor node's current target — an STM32F407-based board derived from the STM32F4 Discovery.
+This document records both the theoretical background and the procedure followed to create and integrate a custom Zephyr board definition for this product.
+
+The actual hardware currently in hand is an STM32F407 Discovery board. Rather than building directly against Zephyr's existing `stm32f4_disco` board definition, this project intentionally created its own board identity, `st/sensor_node1`, to stand in for a future production board. The Discovery kit is being used as a stand-in for that production hardware during early development; keeping a separate board identity from day one means the devicetree, Kconfig, and defconfig can diverge from the reference board as real sensor wiring is added, without ever being confused with, or silently inheriting changes from, the stock Discovery board definition.
 
 It is kept as a reference note for reuse in future projects: the same steps apply to any future board revision (a new PCB spin, a different STM32 part, a second product variant) that starts from an existing, Zephyr-supported reference board.
 
 ---
 
-## 2. Zephyr Board Directory Convention
+## 2. Zephyr Board Support Architecture
 
-Since Zephyr's board metadata format (`board.yml`), a board is identified by a `<vendor>/<board_name>` pair and lives at:
+A Zephyr build resolves through a fixed set of layers, each depending only on the one below it:
 
 ```
-<app-repo>/boards/<vendor>/<board_name>/
+Application (GPIO blink)
+        |
+Board Definition (this project's own st/sensor_node1)
+        |
+SoC Support (STM32F407)
+        |
+Architecture Layer (ARM Cortex-M4)
+        |
+Hardware
 ```
 
-`west`'s board discovery does **not** scan an application's own `boards/` directory automatically. The application's `CMakeLists.txt` has to add itself to `BOARD_ROOT` explicitly, before `find_package(Zephyr...)`:
+The board definition layer is what this document is about: it is the layer that turns generic SoC and architecture support into something buildable for a specific piece of hardware.
 
-```cmake
-list(APPEND BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
+### 2.1 Board Identity and Directory Convention
+
+Since Zephyr's board metadata format (`board.yml`), a board is identified by a `<vendor>/<board_name>` pair, and a custom board can be stored directly inside the application repository that uses it — it does not need to live in Zephyr itself or in a separate module. For this project:
+
 ```
-
-Without this line, a correctly written board definition is simply invisible to `west build` — it fails with "No board named ... found" even though every file is correct.
-
-The board target string passed to `west build -b` is the board's `name:` field alone (e.g. `stm32f4_sensor_node`) — **not** `<vendor>/<board_name>`. The vendor segment is directory and metadata organization only; it is not part of the buildable board identifier.
+stm32-sensor-node/
+├── CMakeLists.txt
+├── prj.conf
+├── src/
+│   └── main.c
+│
+└── boards/
+    └── st/
+        └── sensor_node1/
+            ├── board.yml
+            ├── board.cmake
+            ├── Kconfig.sensor_node1
+            ├── sensor_node1_defconfig
+            ├── sensor_node1.dts
+            └── sensor_node1.yaml
+```
 
 A complete board definition consists of:
 
@@ -44,11 +67,40 @@ A complete board definition consists of:
 | `support/openocd.cfg` | OpenOCD target configuration used by the OpenOCD runner declared in `board.cmake`. |
 | `doc/index.rst` | Optional Sphinx documentation page for the board, in Zephyr's own documentation format. |
 
+### 2.2 Making Zephyr Discover the Application's Board
+
+This is the concept most easily gotten wrong, and worth stating plainly: **Zephyr does not automatically search every application's `boards/` directory.** The build system has to be told explicitly where additional board definitions live, via `BOARD_ROOT`, set inside the application's own `CMakeLists.txt`, *before* `find_package(Zephyr...)`:
+
+```cmake
+cmake_minimum_required(VERSION 3.20.0)
+
+list(APPEND BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+
+find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
+project(stm32_sensor_node)
+
+target_sources(app PRIVATE src/main.c)
+```
+
+`list(APPEND BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR})` is what tells Zephyr "this application repository contains additional boards." With it in place, Zephyr searches both `$ZEPHYR_BASE/boards/` and `stm32-sensor-node/boards/`, and discovers `st/sensor_node1`.
+
+Without that line, the directory can exist exactly as shown above, correctly structured and named, and Zephyr still will not know it exists. `west build -b sensor_node1` fails with `No board named sensor_node1 found` .
+
+### 2.3 Board Name Used During Build
+
+The command `west build -b <board>` uses the board's `name:` field from `board.yml` alone — **not** the full `<vendor>/<board_name>` path. The vendor segment (`st` in this project's case) is directory and metadata organization only; it plays no part in the buildable board identifier. For this project, the correct invocation is:
+
+```bash
+west build -b sensor_node1 .
+```
+
+not `west build -b st/sensor_node1 .`, which fails to resolve.
+
 ---
 
 ## 3. Procedure Followed
 
-Steps 1–7 below have all been completed for this board — see the status note at the end of [Section 4](#4-worked-example--sensor_nodestm32f4_sensor_node).
+Steps 1–7 below have all been completed for this board — see the status note at the end of [Section 4](#4-worked-example--stsensor_node1).
 
 ### Step 1 — Identifying the Closest Reference Board
 
@@ -62,7 +114,7 @@ The target directory was created following Zephyr's convention:
 stm32-sensor-node/boards/<vendor>/<board_name>/
 ```
 
-The `<vendor>` segment does not have to be a registered silicon vendor — it is a free-form namespace string in Zephyr's board schema (validated only as a string, not against a fixed vendor list). It was chosen to identify who owns this board definition, not who manufactures the chip.
+The `<vendor>` segment does not have to be a registered silicon vendor — it is a free-form namespace string in Zephyr's board schema (validated only as a string, not against a fixed vendor list). It identifies who owns this board definition, not who manufactures the chip; this project settled on `st` (see Section 4 for the naming history).
 
 ### Step 3 — Copying the Reference Board's Files
 
@@ -103,7 +155,6 @@ Kconfig.<old_name>        → Kconfig.<new_name>
 | `board.cmake` | Left unchanged — the debug/flash interface is the same as the reference board. |
 | `support/openocd.cfg` | Left unchanged — the OpenOCD target config is the same as the reference board. |
 
-
 ### Step 6 — Stripping the Devicetree to a Minimal, Testable Baseline
 
 Once the board resolved under its new identity, the devicetree copied in Step 3 still described the *reference* board's full peripheral set (its four LEDs, its pushbutton, PWM LEDs, CAN, ADC, I²S, and its onboard audio codec) — not the sensor node's actual wiring, and far more than needed to prove the port works at all. Rather than adapting all of it at once, everything not required for a first smoke test was removed, and the rest was deferred to be defined incrementally as the project progresses:
@@ -116,38 +167,34 @@ Sensor buses (I²C/SPI) and any other peripherals the sensor node actually uses 
 
 ### Step 7 — First Build
 
-The application skeleton (`CMakeLists.txt`, `prj.conf`, `src/main.c`) was filled in with a minimal GPIO blink of `led0`, and built:
+The application skeleton (`CMakeLists.txt`, `prj.conf`, `src/main.c`) was filled in with a minimal GPIO blink of `led0`, and built. This first attempt failed twice before succeeding, for reasons worth recording:
 
-```bash
-cd stm32-sensor-node
-west build -b stm32f4_sensor_node .
-```
-
-This first attempt failed twice before succeeding, for reasons worth recording:
-
-1. `CMakeLists.txt` did not add itself to `BOARD_ROOT` (see [Section 2](#2-zephyr-board-directory-convention)) — the board was not found at all until that line was added.
+1. `CMakeLists.txt` did not add itself to `BOARD_ROOT` (see [Section 2.2](#22-making-zephyr-discover-the-applications-board)) — the board was not found at all until that line was added.
 2. Zephyr's own Python dependencies (`zephyr/scripts/requirements.txt`, notably `jsonschema`) had not actually been installed into the Python environment `west` was using on this machine, despite the workspace-level getting-started documentation assuming they were — `pip install -r zephyr/scripts/requirements.txt` had to be run into that specific interpreter first.
 
-With both fixed, the build succeeded: 17.4 KB flash / 4.5 KB RAM used, `zephyr.elf` generated for `stm32f4_sensor_node`.
+With both fixed, the build succeeded: 17.4 KB flash / 4.5 KB RAM used, `zephyr.elf` generated for the board.
 
 ---
 
-## 4. Worked Example — `sensor_node/stm32f4_sensor_node`
+## 4. Worked Example — `st/sensor_node1`
 
-Applying the procedure above to this product's current target:
+Applying the procedure above to this product's current target. This board went through **two** naming rounds, both recorded here since the reasoning behind each is worth keeping:
 
-| Item | Reference (`st/stm32f4_disco`) | This board (`sensor_node/stm32f4_sensor_node`) |
-|---|---|---|
-| Directory | `zephyr/boards/st/stm32f4_disco/` | `stm32-sensor-node/boards/sensor_node/stm32f4_sensor_node/` |
-| `board.yml` name / vendor | `stm32f4_disco` / `st` | `stm32f4_sensor_node` / `sensor_node` |
-| `<name>.yaml` identifier / vendor | `stm32f4_disco` / `st` | `stm32f4_sensor_node` / `sensor_node` |
-| Kconfig symbol | `BOARD_STM32F4_DISCO` | `BOARD_STM32F4_SENSOR_NODE` |
-| `.dts` model / compatible | `"STMicroelectronics STM32F4DISCOVERY board"` / `"st,stm32f4discovery"` | `"STM32F4 Sensor Node"` / `"sensor_node,stm32f4-sensor-node"` |
-| SoC | `stm32f407xx` (unchanged) | `stm32f407xx` (unchanged) |
+| Item | Reference (`st/stm32f4_disco`) | First identity | Current identity (`st/sensor_node1`) |
+|---|---|---|---|
+| Directory | `zephyr/boards/st/stm32f4_disco/` | `stm32-sensor-node/boards/sensor_node/stm32f4_sensor_node/` | `stm32-sensor-node/boards/st/sensor_node1/` |
+| `board.yml` name / vendor | `stm32f4_disco` / `st` | `stm32f4_sensor_node` / `sensor_node` | `sensor_node1` / `st` |
+| `<name>.yaml` identifier / vendor | `stm32f4_disco` / `st` | `stm32f4_sensor_node` / `sensor_node` | `sensor_node1` / `st` |
+| Kconfig symbol | `BOARD_STM32F4_DISCO` | `BOARD_STM32F4_SENSOR_NODE` | `BOARD_SENSOR_NODE1` |
+| `.dts` model / compatible | `"STMicroelectronics STM32F4DISCOVERY board"` / `"st,stm32f4discovery"` | `"STM32F4 Sensor Node"` / `"sensor_node,stm32f4-sensor-node"` | `"Sensor Node 1"` / `"st,sensor-node1"` |
+| SoC | `stm32f407xx` | `stm32f407xx` (unchanged) | `stm32f407xx` (unchanged) |
 
-**Current status:** All seven steps are complete. The board resolves under its own identity, the devicetree has been stripped to a minimal baseline (clocks, console, one LED), a build succeeds and produces a flashable `zephyr.elf`, and the firmware has been flashed onto the physical board and visually confirmed — the LED on `gpiod` pin 12 blinks at the expected ~1 Hz rate, so the pin mapping in the devicetree is correct, not just internally consistent.
+The first identity (`sensor_node/stm32f4_sensor_node`) established that the porting procedure worked and produced a build. The rename to `st/sensor_node1` followed, reflecting this board's actual role: a stand-in identity for a future production board, rather than a description of the Discovery kit it currently happens to be built and tested on — `stm32f4` in the name tied the identity to the current prototype hardware rather than the product being designed toward, and `st` as vendor was chosen as this is treated as the first-party board definition for this product line, not a third-party namespace.
+
+**Current status:** All seven steps are complete under the current identity. The board resolves and builds cleanly as `sensor_node1` (verified after the rename). The devicetree is at the minimal baseline described in Step 6. The firmware was flashed and visually confirmed working (LED blinking at ~1 Hz) under the *first* identity, prior to the rename in this section — physically reflashing and re-confirming under the `sensor_node1` identity is the immediate next action, though nothing in the rename (a pure identifier change, no devicetree content changed) is expected to alter the physical behavior.
 
 **Remaining work, not yet done:**
+* Re-flash and visually re-confirm the LED blink under the `sensor_node1` identity, now that the board isn't currently connected to reflash against.
 * Add sensor bus peripherals (I²C/SPI) and any other hardware actually wired to the board, one at a time, as the project progresses — deliberately deferred rather than inherited from the reference board.
 * `doc/index.rst` (carried over in Step 3) still documents the stock Discovery board's features and is not required for building — update or remove it when the board's own documentation is written.
 
@@ -166,7 +213,7 @@ Applying the procedure above to this product's current target:
 
 ```bash
 cd stm32-sensor-node
-west build -b stm32f4_sensor_node . -d build
+west build -b sensor_node1 . -d build
 ```
 
 `-d build` places the build output inside the repository, at `stm32-sensor-node/build/` — matching the `.gitignore` entry that keeps it out of version control (see [Section 6](#6-gitignore)). Without `-d`, `west build` still defaults to a `build/` directory in the current working directory, so this is mostly about being explicit; it matters more once building from a different working directory becomes routine.

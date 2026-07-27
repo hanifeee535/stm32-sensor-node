@@ -9,8 +9,8 @@
 #include <st/f4/stm32f407v(e-g)tx-pinctrl.dtsi>
 
 / {
-	model = "STM32F4 Sensor Node";
-	compatible = "sensor_node,stm32f4-sensor-node";
+	model = "Sensor Node 1";
+	compatible = "st,sensor-node1";
 
 	chosen {
 		zephyr,console = &usart2;

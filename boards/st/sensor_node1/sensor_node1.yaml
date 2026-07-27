@@ -1,5 +1,5 @@
-identifier: stm32f4_sensor_node
-name: STM32F4 Sensor Node
+identifier: sensor_node1
+name: Sensor Node 1
 type: mcu
 arch: arm
 toolchain:
@@ -12,4 +12,4 @@ supported:
   - pwm
   - counter
   - adc
-vendor: sensor_node
+vendor: st

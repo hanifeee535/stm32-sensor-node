@@ -1,6 +1,0 @@
-board:
-  name: stm32f4_sensor_node
-  full_name: STM32F4 Sensor Node
-  vendor: sensor_node
-  socs:
-    - name: stm32f407xx

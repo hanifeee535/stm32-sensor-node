@@ -26,10 +26,15 @@
 			gpios = <&gpiod 12 GPIO_ACTIVE_HIGH>;
 			label = "User LED";
 		};
+		orange_led: led_1 {
+			gpios = <&gpiod 13 GPIO_ACTIVE_HIGH>;
+			label = "orange led";
+		};
 	};
 
 	aliases {
-		led0 = &green_led;
+		led1 = &green_led;
+		led2 = &orange_led;
 	};
 };
 

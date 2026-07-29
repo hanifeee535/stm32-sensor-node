@@ -10,8 +10,6 @@ This document records both the theoretical background and the procedure followed
 
 The actual hardware currently in hand is an STM32F407 Discovery board. Rather than building directly against Zephyr's existing `stm32f4_disco` board definition, this project intentionally created its own board identity, `st/sensor_node1`, to stand in for a future production board. The Discovery kit is being used as a stand-in for that production hardware during early development; keeping a separate board identity from day one means the devicetree, Kconfig, and defconfig can diverge from the reference board as real sensor wiring is added, without ever being confused with, or silently inheriting changes from, the stock Discovery board definition.
 
-It is kept as a reference note for reuse in future projects: the same steps apply to any future board revision (a new PCB spin, a different STM32 part, a second product variant) that starts from an existing, Zephyr-supported reference board.
-
 ---
 
 ## 2. Zephyr Board Support Architecture
@@ -19,7 +17,7 @@ It is kept as a reference note for reuse in future projects: the same steps appl
 A Zephyr build resolves through a fixed set of layers, each depending only on the one below it:
 
 ```
-Application (GPIO blink)
+Application 
         |
 Board Definition (this project's own st/sensor_node1)
         |
@@ -69,7 +67,7 @@ A complete board definition consists of:
 
 ### 2.2 Making Zephyr Discover the Application's Board
 
-This is the concept most easily gotten wrong, and worth stating plainly: **Zephyr does not automatically search every application's `boards/` directory.** The build system has to be told explicitly where additional board definitions live, via `BOARD_ROOT`, set inside the application's own `CMakeLists.txt`, *before* `find_package(Zephyr...)`:
+ **Zephyr does not automatically search every application's `boards/` directory.** The build system has to be told explicitly where additional board definitions live, via `BOARD_ROOT`, set inside the application's own `CMakeLists.txt`, *before* `find_package(Zephyr...)`:
 
 ```cmake
 cmake_minimum_required(VERSION 3.20.0)

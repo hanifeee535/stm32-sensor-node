@@ -32,9 +32,18 @@
 		};
 	};
 
+	user_button {
+		compatible = "gpio-keys";
+		user_button1: button_1 {
+			gpios = <&gpioa 0 GPIO_ACTIVE_HIGH>;
+			label = "user button";
+		};						
+	};
+
 	aliases {
 		led1 = &green_led;
 		led2 = &orange_led;
+		button1  = &user_button1;
 	};
 };
 

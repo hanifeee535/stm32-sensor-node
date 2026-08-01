@@ -6,4 +6,8 @@ list(APPEND BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(stm32_sensor_node)
 
+# App sources
 target_sources(app PRIVATE src/main.c)
+
+# Include path for sn_logging.h
+target_include_directories(app PRIVATE src/sn-logging)

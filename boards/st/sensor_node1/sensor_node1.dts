@@ -19,6 +19,7 @@
 		zephyr,flash = &flash0;
 	};
 
+	/* Onboard LEDs - PD12/PD13 */
 	leds {
 		compatible = "gpio-leds";
 
@@ -32,12 +33,13 @@
 		};
 	};
 
+	/* User button (B1) - PA0 */
 	user_button {
 		compatible = "gpio-keys";
 		user_button1: button_1 {
 			gpios = <&gpioa 0 GPIO_ACTIVE_HIGH>;
 			label = "user button";
-		};						
+		};
 	};
 
 	aliases {

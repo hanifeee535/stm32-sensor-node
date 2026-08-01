@@ -4,17 +4,17 @@
 
 /* Logging setup */
 #include "sn_logging.h"
-LOG_MODULE_REGISTER (main, LOG_LEVEL_MAIN);
+LOG_MODULE_REGISTER(main, LOG_LEVEL_MAIN);
 
 /* Devicetree aliases */
-#define LED1_NODE DT_ALIAS(led1)
-#define LED2_NODE DT_ALIAS(led2)
-#define BUTTON_NODE DT_ALIAS (button1)
+#define LED1_NODE   DT_ALIAS(led1)
+#define LED2_NODE   DT_ALIAS(led2)
+#define BUTTON_NODE DT_ALIAS(button1)
 
 /* GPIO specs, resolved at compile time */
 static const struct gpio_dt_spec led1 = GPIO_DT_SPEC_GET(LED1_NODE, gpios);
 static const struct gpio_dt_spec led2 = GPIO_DT_SPEC_GET(LED2_NODE, gpios);
-static const struct gpio_dt_spec button1 = GPIO_DT_SPEC_GET (BUTTON_NODE, gpios);
+static const struct gpio_dt_spec button1 = GPIO_DT_SPEC_GET(BUTTON_NODE, gpios);
 
 /* Shared with the button ISR , volatile since it's set from interrupt context */
 static struct gpio_callback button_cb_data;
@@ -36,11 +36,11 @@ int main(void)
 		LOG_ERR("led1 not ready");
 		return 0;
 	}
-	if (!gpio_is_ready_dt(&led2)){
+	if (!gpio_is_ready_dt(&led2)) {
 		LOG_ERR("led2 not ready");
 		return 0;
 	}
-	if (!gpio_is_ready_dt(&button1)){
+	if (!gpio_is_ready_dt(&button1)) {
 		LOG_ERR("button1 not ready");
 		return 0;
 	}
@@ -51,15 +51,15 @@ int main(void)
 		LOG_ERR("led1 configure failed (%d)", ret);
 		return 0;
 	}
-	ret = gpio_pin_configure_dt (&led2, GPIO_OUTPUT_ACTIVE);
-	if (ret<0){
+	ret = gpio_pin_configure_dt(&led2, GPIO_OUTPUT_ACTIVE);
+	if (ret < 0) {
 		LOG_ERR("led2 configure failed (%d)", ret);
 		return 0;
 	}
 
 	/* Button input + interrupt config */
 	ret = gpio_pin_configure_dt(&button1, GPIO_INPUT);
-	if (ret < 0 ){
+	if (ret < 0) {
 		LOG_ERR("button1 configure failed (%d)", ret);
 		return 0;
 	}

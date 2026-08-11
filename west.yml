@@ -1,15 +1,15 @@
-menifest:
+manifest:
+  version: "0.13"
 
   remotes:
-    - name: zephyrproject-rtos 
+    - name: zephyrproject-rtos
       url-base: https://github.com/zephyrproject-rtos
-    
+
   projects:
     - name: zephyr
-      remote: zephyrproject-rtos 
-      reverion: v4.3.0
+      remote: zephyrproject-rtos
+      revision: v4.3.0
       import: true
+
   self:
-    path: app 
-      
-    
+    path: app

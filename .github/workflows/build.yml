@@ -1,0 +1,135 @@
+name: Build stm32-sensor-node (Zephyr, sensor_node1)
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'Feature/') || startsWith(github.head_ref, 'Bug/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+
+      - name: Check code formatting (.clang-format)
+        run: |
+          find src -regex '.*\.\(c\|h\)$' -print0 \
+            | xargs -0 clang-format --dry-run --Werror
+
+  build:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'Feature/') || startsWith(github.head_ref, 'Bug/')
+
+    env:
+      ZEPHYR_SDK_VERSION: 0.17.4
+      ZEPHYR_SDK_INSTALL_DIR: ${{ github.workspace }}/zephyr-sdk
+      ZEPHYR_TOOLCHAIN_VARIANT: zephyr
+
+    steps:
+      # 1) Check out this repo first — it is now the west manifest (self.path: app)
+      - name: Checkout application
+        uses: actions/checkout@v4
+        with:
+          path: app
+
+      # 2) Basic tools
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build cmake gperf ccache dfu-util \
+            device-tree-compiler wget xz-utils file \
+            python3-pip python3-setuptools python3-wheel \
+            gcc-multilib libmagic1
+
+      - name: Install west
+        run: pip3 install west
+
+      # 3) Zephyr SDK — cached by version, so only the first run pays the download+extract cost
+      - name: Cache Zephyr SDK
+        id: cache-sdk
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ZEPHYR_SDK_INSTALL_DIR }}
+          key: zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}-${{ runner.os }}
+
+      - name: Download Zephyr SDK
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
+        run: |
+          wget https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${{ env.ZEPHYR_SDK_VERSION }}/zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}_linux-x86_64.tar.xz
+          mkdir -p $ZEPHYR_SDK_INSTALL_DIR
+          tar -xJf zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}_linux-x86_64.tar.xz -C $ZEPHYR_SDK_INSTALL_DIR --strip-components=1
+
+      - name: Register Zephyr SDK toolchain
+        run: $ZEPHYR_SDK_INSTALL_DIR/setup.sh -t arm-zephyr-eabi -c
+
+      # 4) Zephyr + modules — cached by west.yml contents (bumps automatically when the pin changes)
+      - name: Cache Zephyr workspace (west projects)
+        uses: actions/cache@v4
+        with:
+          path: |
+            zephyr
+            modules
+            bootloader
+            tools
+          key: west-workspace-${{ hashFiles('app/west.yml') }}
+          restore-keys: |
+            west-workspace-
+
+      - name: Init Zephyr workspace from manifest
+        run: |
+          west init -l app
+          west update
+
+      # 5) Compiler cache — speeds up rebuilds when only a few files changed
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ runner.os }}-
+
+      # 6) Build firmware for the custom sensor_node1 board
+      - name: Build stm32-sensor-node
+        env:
+          ZEPHYR_BASE: ${{ github.workspace }}/zephyr
+        run: |
+          west build -b sensor_node1 app -d build-vs
+
+      # 7) Save build artifacts
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: stm32-sensor-node-sensor_node1
+          path: |
+            build-vs/zephyr/zephyr.hex
+            build-vs/zephyr/zephyr.bin
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download firmware artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: stm32-sensor-node-sensor_node1
+          path: firmware
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            firmware/zephyr.hex firmware/zephyr.bin \
+            --title "${{ github.ref_name }}" \
+            --generate-notes

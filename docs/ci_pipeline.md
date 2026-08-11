@@ -82,9 +82,10 @@ Steps, in order:
 | 2 | Install build dependencies / Install west | Same apt package list and `pip3 install west` as before — `ninja`, `cmake`, `gperf`, `ccache`, `dfu-util`, the device-tree compiler, and the Python toolchain `west` itself needs. |
 | 3 | Cache Zephyr SDK / Download Zephyr SDK / Register Zephyr SDK toolchain | See [Section 4](#4-caching-strategy). The download+extract is skipped on a cache hit; the toolchain *registration* (`setup.sh -t arm-zephyr-eabi -c`) always runs, since it writes to `~/.cmake/packages`, which is outside the cached path. |
 | 4 | Cache Zephyr workspace (west projects) / Init Zephyr workspace from manifest | `west init -l app` reads `app/west.yml` locally (no clone needed — the manifest repo is already checked out); `west update` then resolves `zephyr` at `v4.3.0` plus every module it imports, into `zephyr/`, `modules/`, `bootloader/`, `tools/` at the workspace root. |
+| — | Install Zephyr Python dependencies | `pip3 install -r zephyr/scripts/requirements.txt`, run only after step 4 populates `zephyr/` — that file is what pulls in `pyelftools`, `pyyaml`, and the other packages Zephyr's own build-time scripts (e.g. `gen_kobject_list.py`) import at ninja time. `pip3 install west` earlier only installs the `west` tool itself, not these; skipping this step fails the build with `ModuleNotFoundError: No module named 'elftools'`. |
 | 5 | Cache ccache | See [Section 4](#4-caching-strategy). |
-| 6 | Build stm32-sensor-node | `west build -b sensor_node1 app -d build-vs`, with `ZEPHYR_BASE` pointed at `${{ github.workspace }}/zephyr` (populated by step 4). |
-| 7 | Upload firmware | Publishes `build-vs/zephyr/zephyr.hex` and `build-vs/zephyr/zephyr.bin` as a downloadable workflow artifact named `stm32-sensor-node-sensor_node1`, retrievable from the run's summary page under **Actions**. |
+| 6 | Build stm32-sensor-node | `west build -b sensor_node1 app -d build`, with `ZEPHYR_BASE` pointed at `${{ github.workspace }}/zephyr` (populated by step 4). |
+| 7 | Upload firmware | Publishes `build/zephyr/zephyr.hex` and `build/zephyr/zephyr.bin` as a downloadable workflow artifact named `stm32-sensor-node-sensor_node1`, retrievable from the run's summary page under **Actions**. |
 
 ### 3.3 `release`
 

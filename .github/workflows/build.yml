@@ -87,6 +87,9 @@ jobs:
           west init -l app
           west update
 
+      - name: Install Zephyr Python dependencies
+        run: pip3 install -r zephyr/scripts/requirements.txt
+
       # 5) Compiler cache — speeds up rebuilds when only a few files changed
       - name: Cache ccache
         uses: actions/cache@v4
@@ -101,7 +104,7 @@ jobs:
         env:
           ZEPHYR_BASE: ${{ github.workspace }}/zephyr
         run: |
-          west build -b sensor_node1 app -d build-vs
+          west build -b sensor_node1 app -d build
 
       # 7) Save build artifacts
       - name: Upload firmware
@@ -109,8 +112,8 @@ jobs:
         with:
           name: stm32-sensor-node-sensor_node1
           path: |
-            build-vs/zephyr/zephyr.hex
-            build-vs/zephyr/zephyr.bin
+            build/zephyr/zephyr.hex
+            build/zephyr/zephyr.bin
 
   release:
     needs: build

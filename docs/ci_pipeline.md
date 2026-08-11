@@ -6,7 +6,7 @@
 
 ## 1. Purpose
 
-This document records what the GitHub Actions workflow at [`.github/workflows/build.yml`](../.github/workflows/build.yml) actually does, why it is structured the way it is, what it depends on ([`west.yml`](west_manifest.md) in particular), and what it deliberately does not cover yet.
+This document records what the GitHub Actions workflow at [`.github/workflows/build.yml`](../.github/workflows/build.yml) actually does.
 
 The workflow's scope, in one line: **confirm this repository still builds for `sensor_node1`, confirm its C code is formatted per `.clang-format`, and, on a version tag, publish the resulting firmware as a GitHub Release.** It does not run any test suite, and it does not flash real hardware — see [Section 6](#6-known-gaps).
 
@@ -143,17 +143,6 @@ No repository secrets are required — every URL fetched (Zephyr SDK release, Ze
 
 ---
 
-## 6. Known Gaps
-
-Deliberately not covered by this workflow, and why:
-
-| Gap | Why it's not in yet |
-|---|---|
-| No test suite (`twister`) | There is no `tests/` directory or `testcase.yaml`/`sample.yaml` anywhere in this repository yet. Adding a test *step* without any test *cases* to run would be a no-op. A meaningful test step requires Zephyr twister test cases to be written first. |
-| No hardware-in-the-loop flashing | `runs-on: ubuntu-latest` is a GitHub-hosted, ephemeral VM with no USB access to the physical `sensor_node1` board. Actually flashing and verifying behavior on real hardware as part of CI would require a **self-hosted runner** with the board attached — a deliberate infrastructure decision not yet made for this project. |
-| No branch-protection enforcement | Whether `lint`/`build` are *required* status checks before merging to `main` is a GitHub repository setting (Settings → Branches), not something this workflow file controls. |
-
----
 
 ## 7. References
 

@@ -2,27 +2,6 @@
 
 **Repository:** `stm32-sensor-node`
 
----
-
-## 1. Purpose
-
-This document records why `west.yml` exists at the root of this repository, what topology it implements, and how it's used both locally and in CI.
-
-Before this file existed, building this repository meant manually running `west init` against Zephyr's upstream repository directly, with no revision pinned — whatever commit happened to be at the tip of Zephyr's default branch on the day of the build. `west.yml` replaces that with a single, version-controlled pin: given only this repository, `west` can resolve a specific, reproducible Zephyr tree without any other input or manual step.
-
----
-
-## 2. Why a Manifest Was Added
-
-The immediate driver was [`.github/workflows/build.yml`](../.github/workflows/build.yml) (see [`ci_pipeline.md`](ci_pipeline.md)). A GitHub Actions runner starts from a clean VM with no pre-existing Zephyr checkout anywhere — every run has to resolve one from scratch. Two options existed for that:
-
-1. Point CI at Zephyr's own upstream repository directly (`west init -m https://github.com/zephyrproject-rtos/zephyr.git`), tracking whichever revision that repository's default branch happens to be at when the job runs.
-2. Give this repository its own manifest, pinning an explicit Zephyr revision, and have CI initialize *from this repository*.
-
-Option 1 was the initial approach and is unpinned by construction — a passing build today gives no guarantee the same commit still builds tomorrow, since "upstream default branch" is a moving target that can introduce breaking changes (renamed Kconfig symbols, changed devicetree bindings, updated HAL APIs) with no warning. Option 2 was adopted instead: `west.yml` pins Zephyr to `v4.3.0`, a release confirmed to build this board correctly, so a CI result — and a local build — means something reproducible, not "whatever Zephyr happened to be today."
-
----
-
 ## 3. Manifest Topology: T2 (Application-with-Manifest)
 
 West recognizes a few standard manifest topologies. This repository uses **T2 — application repository *is* the manifest repository**: the same repository that holds `src/`, `boards/`, `CMakeLists.txt`, and `prj.conf` also holds `west.yml` at its root and doubles as the `self` project.

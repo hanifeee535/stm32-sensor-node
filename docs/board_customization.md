@@ -6,8 +6,6 @@
 
 ## 1. Purpose
 
-This document records both the theoretical background and the procedure followed to create and integrate a custom Zephyr board definition for this product.
-
 The actual hardware currently in hand is an STM32F407 Discovery board. Rather than building directly against Zephyr's existing `stm32f4_disco` board definition, this project intentionally created its own board identity, `st/sensor_node1`, to stand in for a future production board. The Discovery kit is being used as a stand-in for that production hardware during early development; keeping a separate board identity from day one means the devicetree, Kconfig, and defconfig can diverge from the reference board as real sensor wiring is added, without ever being confused with, or silently inheriting changes from, the stock Discovery board definition.
 
 ---

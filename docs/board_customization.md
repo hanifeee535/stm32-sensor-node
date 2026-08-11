@@ -202,19 +202,21 @@ The first identity (`sensor_node/stm32f4_sensor_node`) established that the port
 
 ### Prerequisites
 
-* `west` and the Zephyr SDK, per the workspace-level getting-started documentation.
+* A workspace initialized from this repository's own `west.yml`, which resolves the Zephyr SDK's toolchain requirement and pins the Zephyr revision this board is built against — see [`west_manifest.md`](west_manifest.md) for the exact `west init` / `west update` sequence.
 * Zephyr's Python dependencies installed into the interpreter `west` actually uses: `pip install -r zephyr/scripts/requirements.txt` (see Step 7's note above — this is easy to assume is already done and not actually be true).
 * `openocd` (`sudo apt install openocd`) — the runner that talks to this board's onboard ST-Link/V2. Neither STM32CubeProgrammer nor a J-Link probe is used here.
 * The board connected via its **ST-Link mini-USB port** (labeled `CN5`, next to the ST-Link status LEDs) — not the micro-USB OTG port on the opposite side, which is the target MCU's own USB peripheral, not the debug interface. Connected correctly, it enumerates over USB as STMicroelectronics `ST-LINK/V2.1` (USB vendor ID `0483`); `lsusb` can confirm this.
 
 ### Build
 
+From within a workspace set up per [`west_manifest.md`](west_manifest.md#5-building-with-this-manifest), where this repository sits at `<workspace>/app` (its manifest's `self.path`):
+
 ```bash
-cd stm32-sensor-node
-west build -b sensor_node1 . -d build
+cd workspace
+west build -b sensor_node1 app -d build
 ```
 
-`-d build` places the build output inside the repository, at `stm32-sensor-node/build/` — matching the `.gitignore` entry that keeps it out of version control (see [Section 6](#6-gitignore)). Without `-d`, `west build` still defaults to a `build/` directory in the current working directory, so this is mostly about being explicit; it matters more once building from a different working directory becomes routine.
+`-d build` places the build output at `workspace/build/`, matching the `.gitignore` entry that keeps it out of version control (see [Section 6](#6-gitignore)).
 
 A clean build reports something like:
 
@@ -264,3 +266,5 @@ build/, build-*/          — Zephyr/CMake build output
 * Zephyr Devicetree Guide: https://docs.zephyrproject.org/latest/build/dts/index.html
 * Zephyr Pin Control: https://docs.zephyrproject.org/latest/hardware/pinctrl/index.html
 * Reference board (`st/stm32f4_disco`) documentation: https://docs.zephyrproject.org/latest/boards/st/stm32f4_disco/doc/index.html
+* [`west_manifest.md`](west_manifest.md) — this repository's own `west.yml`, and how it relates to the platform-wide workspace
+* [`ci_pipeline.md`](ci_pipeline.md) — the GitHub Actions workflow that builds this board on every push/PR
